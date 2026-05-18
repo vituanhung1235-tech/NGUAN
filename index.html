@@ -1391,24 +1391,52 @@ function themNhanVienMoi(nhanVien) {
        taiDanhSachNhanVien(); // Tải lại danh sách mới
      }
   });
+  const GOOGLE_SHEET_URL = "DÁN_CÁI_LINK_WEB_APP_URL_ĐUÔI_EXEC_CỦA_BẠN_VÀO_DÂY";
 }
 }
-async function loadAll(){
-  try {
-    let raw = null;
-    try { const r = await window.storage.get('hrm_nguan_data_v2'); if(r && r.value) raw = r.value; } catch(e){}
-    if(!raw){ try { raw = localStorage.getItem('hrm_nguan_data_v2'); } catch(e){} }
-    if(raw){
-      const d = JSON.parse(raw);
-      DATA = {
-        cfg: {...DEFAULT_CFG, ...(d.cfg||{})},
-        pos: d.pos && d.pos.length ? d.pos : JSON.parse(JSON.stringify(DEFAULT_POS)),
-        emp: d.emp || [],
-        monthly: d.monthly || {},
-        users: d.users || []
-      };
+async function loadAll() {
+    try {
+        let raw = null;
+        
+        // 1. Thử tải dữ liệu online từ Google Sheets trước để đồng bộ giữa các máy
+        try {
+            const response = await fetch(GOOGLE_SHEET_URL);
+            const sheetData = await response.json();
+            
+            // Nếu trên Google Sheet đã có dữ liệu hàng thứ 2, lấy cục dữ liệu đó ra
+            if (sheetData && sheetData.length > 0 && sheetData[0].DuLieuGoc) {
+                raw = sheetData[0].DuLieuGoc;
+                // Cập nhật lại một bản vào máy phòng khi mất mạng vẫn dùng được
+                localStorage.setItem('hrm_nguan_data_v2', raw);
+            }
+        } catch (sheetError) {
+            console.warn("Không kết nối được Google Sheets, chuyển sang dùng bộ nhớ máy:", sheetError);
+        }
+
+        // 2. Nếu không có mạng hoặc Google Sheet trống, quay về dùng localStorage như cũ
+        if (!raw) {
+            try { const r = await window.storage.get('hrm_nguan_data_v2'); if(r && r.value) raw = r.value; } catch(e){}
+            if(!raw){ try { raw = localStorage.getItem('hrm_nguan_data_v2'); } catch(e){} }
+        }
+
+        // 3. Ép dữ liệu vào hệ thống giao diện chuẩn của bạn
+        if(raw){
+            const d = JSON.parse(raw);
+            DATA = {
+                cfg: {...DEFAULT_CFG, ...(d.cfg||{})},
+                pos: d.pos && d.pos.length ? d.pos : JSON.parse(JSON.stringify(DEFAULT_POS)),
+                emp: d.emp || [],
+                monthly: d.monthly || {},
+                users: d.users || []
+            };
+            
+            // Gọi hàm render vẽ lại giao diện của bạn (nếu có)
+            if (typeof render === "function") render(); 
+            if (typeof showEmp === "function") showEmp();
+        }
+    } catch(e) {
+        console.warn(e);
     }
-  } catch(e){console.warn(e);}
 }
 
 // ============================================
