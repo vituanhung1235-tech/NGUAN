@@ -1364,76 +1364,62 @@ function normalizeLogoUrl(url){
 // ============================================
 // ============ STORAGE =======================
 // ============================================
-async function saveAll(){
- // Dán cái link bạn vừa copy ở Bước 3 vào đây
-const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw-BDyhqUub_byZbwrwvaMiG3ABOytMR1naBKFrIyRDgQSxzefLgA0sJo3emyEfFh9Vlw/exec";
+const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbws1hOF5mRcSyZRAdarNBkkFqqbPtHJHuCWpBlVBezM7flWdPDry-gwy-25D6TRVxiZAQ/exec";
 
-// Hàm lấy dữ liệu từ Google Sheet về hiển thị (Gọi hàm này khi ứng dụng vừa mở lên)
-function taiDanhSachNhanVien() {
-  fetch(GOOGLE_SHEET_URL)
-    .then(res => res.json())
-    .then(data => {
-       console.log("Danh sách nhân viên từ Google Sheets:", data);
-       // Viết code hiển thị danh sách này lên giao diện của bạn tại đây...
-    });
+// 1. HÀM LƯU DỮ LIỆU (ĐỒNG BỘ LÊN MẠNG)
+async function saveAll() {
+    try {
+        const rawString = JSON.stringify(DATA);
+        
+        // Lưu vào máy trước
+        localStorage.setItem('hrm_nguan_data_v2', rawString);
+        if (window.storage && window.storage.set) {
+            await window.storage.set('hrm_nguan_data_v2', rawString);
+        }
+
+        // Bắn dữ liệu an toàn bằng phương thức POST
+        fetch(GOOGLE_SHEET_URL, {
+            method: "POST",
+            mode: "no-cors", // Bỏ qua chặn bảo mật trình duyệt
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                action: "save",
+                data: rawString
+            })
+        })
+        .then(() => console.log("Đang đồng bộ dữ liệu ngầm lên Google Sheets..."))
+        .catch(e => console.error("Lỗi đồng bộ mạng:", e));
+
+    } catch (e) {
+        console.warn("Lỗi lưu:", e);
+    }
 }
 
-// Hàm thêm nhân viên mới (Gọi hàm này khi bấm nút Lưu nhân viên)
-function themNhanVienMoi(nhanVien) {
-  fetch(GOOGLE_SHEET_URL, {
-    method: "POST",
-    body: JSON.stringify(nhanVien)
-  })
-  .then(res => res.json())
-  .then(result => {
-     if(result.status === "success") {
-       alert("Đã đồng bộ nhân viên lên hệ thống chung!");
-       taiDanhSachNhanVien(); // Tải lại danh sách mới
-     }
-  });
-  const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw-BDyhqUub_byZbwrwvaMiG3ABOytMR1naBKFrIyRDgQSxzefLgA0sJo3emyEfFh9Vlw/exec";
-}
-}
+// 2. HÀM TẢI DỮ LIỆU (ĐỌC TỪ MẠNG VỀ)
 async function loadAll() {
     try {
         let raw = null;
         
-        // 1. Thử tải dữ liệu online từ Google Sheets trước để đồng bộ giữa các máy
         try {
             const response = await fetch(GOOGLE_SHEET_URL);
             const sheetData = await response.json();
             
-            // Nếu trên Google Sheet đã có dữ liệu hàng thứ 2, lấy cục dữ liệu đó ra
             if (sheetData && sheetData.length > 0 && sheetData[0].DuLieuGoc) {
                 raw = sheetData[0].DuLieuGoc;
-                // Cập nhật lại một bản vào máy phòng khi mất mạng vẫn dùng được
                 localStorage.setItem('hrm_nguan_data_v2', raw);
-                // Dán đoạn này vào CUỐI hàm lưu dữ liệu hiện tại của bạn:
-const dataGuiDi = { "DuLieuGoc": localStorage.getItem('hrm_nguan_data_v2') };
-
-fetch(GOOGLE_SHEET_URL, {
-    method: "POST",
-    mode: "no-cors", // Thêm dòng này để tránh bị trình duyệt chặn bảo mật
-    headers: {
-        "Content-Type": "application/json"
-    },
-    body: JSON.stringify(dataGuiDi)
-})
-.then(() => console.log("Đã đồng bộ lên Google Sheets!"))
-.catch(e => console.error("Lỗi đồng bộ mạng:", e));
             }
         } catch (sheetError) {
-            console.warn("Không kết nối được Google Sheets, chuyển sang dùng bộ nhớ máy:", sheetError);
+            console.warn("Đang dùng dữ liệu tại máy (Offline):", sheetError);
         }
 
-        // 2. Nếu không có mạng hoặc Google Sheet trống, quay về dùng localStorage như cũ
         if (!raw) {
             try { const r = await window.storage.get('hrm_nguan_data_v2'); if(r && r.value) raw = r.value; } catch(e){}
             if(!raw){ try { raw = localStorage.getItem('hrm_nguan_data_v2'); } catch(e){} }
         }
 
-        // 3. Ép dữ liệu vào hệ thống giao diện chuẩn của bạn
-        if(raw){
+        if (raw) {
             const d = JSON.parse(raw);
             DATA = {
                 cfg: {...DEFAULT_CFG, ...(d.cfg||{})},
@@ -1443,12 +1429,12 @@ fetch(GOOGLE_SHEET_URL, {
                 users: d.users || []
             };
             
-            // Gọi hàm render vẽ lại giao diện của bạn (nếu có)
             if (typeof render === "function") render(); 
             if (typeof showEmp === "function") showEmp();
+            if (typeof updateTable === "function") updateTable();
         }
     } catch(e) {
-        console.warn(e);
+        console.warn("Lỗi tải dữ liệu:", e);
     }
 }
 
