@@ -1365,9 +1365,33 @@ function normalizeLogoUrl(url){
 // ============ STORAGE =======================
 // ============================================
 async function saveAll(){
-  try { await window.storage.set('hrm_nguan_data_v2', JSON.stringify(DATA)); } catch(e){
-    try{ localStorage.setItem('hrm_nguan_data_v2', JSON.stringify(DATA)); }catch(e2){}
-  }
+ // Dán cái link bạn vừa copy ở Bước 3 vào đây
+const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw-BDyhqUub_byZbwrwvaMiG3ABOytMR1naBKFrIyRDgQSxzefLgA0sJo3emyEfFh9Vlw/exec";
+
+// Hàm lấy dữ liệu từ Google Sheet về hiển thị (Gọi hàm này khi ứng dụng vừa mở lên)
+function taiDanhSachNhanVien() {
+  fetch(GOOGLE_SHEET_URL)
+    .then(res => res.json())
+    .then(data => {
+       console.log("Danh sách nhân viên từ Google Sheets:", data);
+       // Viết code hiển thị danh sách này lên giao diện của bạn tại đây...
+    });
+}
+
+// Hàm thêm nhân viên mới (Gọi hàm này khi bấm nút Lưu nhân viên)
+function themNhanVienMoi(nhanVien) {
+  fetch(GOOGLE_SHEET_URL, {
+    method: "POST",
+    body: JSON.stringify(nhanVien)
+  })
+  .then(res => res.json())
+  .then(result => {
+     if(result.status === "success") {
+       alert("Đã đồng bộ nhân viên lên hệ thống chung!");
+       taiDanhSachNhanVien(); // Tải lại danh sách mới
+     }
+  });
+}
 }
 async function loadAll(){
   try {
