@@ -1391,7 +1391,7 @@ function themNhanVienMoi(nhanVien) {
        taiDanhSachNhanVien(); // Tải lại danh sách mới
      }
   });
-  const GOOGLE_SHEET_URL = "DÁN_CÁI_LINK_WEB_APP_URL_ĐUÔI_EXEC_CỦA_BẠN_VÀO_DÂY";
+  const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw-BDyhqUub_byZbwrwvaMiG3ABOytMR1naBKFrIyRDgQSxzefLgA0sJo3emyEfFh9Vlw/exec";
 }
 }
 async function loadAll() {
@@ -1408,6 +1408,19 @@ async function loadAll() {
                 raw = sheetData[0].DuLieuGoc;
                 // Cập nhật lại một bản vào máy phòng khi mất mạng vẫn dùng được
                 localStorage.setItem('hrm_nguan_data_v2', raw);
+                // Dán đoạn này vào CUỐI hàm lưu dữ liệu hiện tại của bạn:
+const dataGuiDi = { "DuLieuGoc": localStorage.getItem('hrm_nguan_data_v2') };
+
+fetch(GOOGLE_SHEET_URL, {
+    method: "POST",
+    mode: "no-cors", // Thêm dòng này để tránh bị trình duyệt chặn bảo mật
+    headers: {
+        "Content-Type": "application/json"
+    },
+    body: JSON.stringify(dataGuiDi)
+})
+.then(() => console.log("Đã đồng bộ lên Google Sheets!"))
+.catch(e => console.error("Lỗi đồng bộ mạng:", e));
             }
         } catch (sheetError) {
             console.warn("Không kết nối được Google Sheets, chuyển sang dùng bộ nhớ máy:", sheetError);
